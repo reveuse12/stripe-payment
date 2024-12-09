@@ -23,7 +23,7 @@ const Payment = () => {
           />
         </TabsContent>
         <TabsContent value="payment">
-          <PaymentMethod />
+          <PaymentMethod selectedPlan={selectedPlan} />
         </TabsContent>
       </Tabs>
     </div>

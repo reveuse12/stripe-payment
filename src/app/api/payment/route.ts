@@ -1,36 +1,34 @@
-import { stripeToken } from "@/lib/stripe";
 import { NextRequest, NextResponse } from "next/server";
+import Stripe from "stripe";
 
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 export async function POST(request: NextRequest) {
   try {
-    const { planId } = await request.json();
-    if (!planId) {
+    const { priceId, email, address } = await request.json();
+    if (!priceId) {
       return NextResponse.json(
-        { error: "Plan ID is required" },
+        { error: "Price ID is required" },
         { status: 400 }
       );
     }
 
-    // Fetch the selected plan details
-    const prices = await stripeToken.prices.list({ expand: ["data.product"] });
-    const selectedPlan = prices.data.find((price) => price.id === planId);
-
-    if (!selectedPlan) {
-      return NextResponse.json({ error: "Invalid plan ID" }, { status: 404 });
-    }
-
-    // Create a PaymentIntent
-    const paymentIntent = await stripeToken.paymentIntents.create({
-      amount: selectedPlan.unit_amount!,
-      currency: selectedPlan.currency,
-      automatic_payment_methods: {
-        enabled: true,
-      },
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "subscription",
+      customer_email: email,
+      // customer_details: [],
+      line_items: [
+        {
+          price: priceId, // Price ID from your Stripe product
+          quantity: 1,
+        },
+      ],
+      success_url: `${process.env.BASE_URL}success`,
+      cancel_url: `${process.env.BASE_URL}cancel`,
     });
 
-    // Return the client secret needed to complete the payment
     return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
+      sessionId: session.id,
     });
   } catch (error: unknown) {
     if (error instanceof Error) {
